@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lunch Plate Planner Lite</title>
+<style>
+/* Layout: one narrow column. Difficulty 1-5 and menu on top; how the menu was read, then plate and text. No tracker. */
+:root {
+  --bg: #F3F6F5; --surface: #FFFFFF; --ink: #12201C; --muted: #5A6B66; --line: #D5DEDB;
+  --accent: #0E6B5C; --accent-ink: #FFFFFF;
+  --c-carb: #E0A93B; --c-prot: #B5483A; --c-veg: #3F8F4F; --on-seg: #101A17;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0F1917; --surface: #172421; --ink: #E7F0ED; --muted: #94A8A2; --line: #2B3C38; --accent: #3FC3AB; --accent-ink: #08201B; --c-carb: #E3B552; --c-prot: #D8705F; --c-veg: #62B873; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0F1917; --surface: #172421; --ink: #E7F0ED; --muted: #94A8A2; --line: #2B3C38; --accent: #3FC3AB; --accent-ink: #08201B; --c-carb: #E3B552; --c-prot: #D8705F; --c-veg: #62B873; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.45; padding-inline: 16px; padding-block: 20px 40px; }
+main { max-width: 640px; margin-inline: auto; display: grid; gap: 14px; }
+h1 { font-size: 1.6rem; margin: 0; line-height: 1.1; text-wrap: balance; }
+h2 { font-size: .8rem; margin: 0; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.sub, .hint { color: var(--muted); margin: 4px 0 0; font-size: .92rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; justify-self: start; }
+.seg button { font: inherit; font-weight: 600; padding: 10px 16px; min-width: 44px; background: transparent; color: var(--ink); border: 0; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+label.chk { display: flex; gap: 8px; align-items: center; font-size: .92rem; color: var(--muted); }
+textarea { width: 100%; min-height: 140px; font: inherit; padding: 10px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; resize: vertical; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn { font: inherit; font-weight: 600; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); cursor: pointer; justify-self: start; }
+.bar { display: flex; height: 40px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.bar span { display: grid; place-items: center; color: var(--on-seg); font-weight: 700; font-size: .85rem; min-width: 0; padding-inline: 4px; text-align: center; }
+.plate { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.plate li { border-left: 6px solid var(--accent); padding: 4px 0 4px 10px; overflow-wrap: anywhere; }
+.plate b { display: block; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.plate .m { display: block; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile .t { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tile .s { font-size: .8rem; font-weight: 600; }
+.meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 4px; }
+.meter i { display: block; height: 100%; background: var(--accent); }
+.dlabel { font-weight: 600; margin: 0; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+.tile .v { font-size: 1.5rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile .l { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.note { color: var(--muted); font-size: .9rem; margin: 0; }
+.sms { background: var(--bg); border: 1px dashed var(--line); border-radius: 10px; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .95rem; }
+.read { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.read li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; overflow-wrap: anywhere; }
+.chip { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 99px; color: var(--on-seg); }
+.chip.none { background: var(--line); color: var(--muted); }
+.used { color: var(--muted); font-size: .85rem; }
+footer { color: var(--muted); font-size: .82rem; }
+</style>
+
+</head>
+<body>
+<main>
+  <header>
+    <h1>Lunch Plate Planner Lite</h1>
+    <p class="sub">Paste the dining hall lunch options, rate today's practice from 1 to 5, and get the plate to build.</p>
+    <p class="hint"><b>Assumption this MVP tests:</b> college athletes who eat at the dining hall will follow a specific plate when it is texted to them before lunch. Follow-through is counted by hand from plate photos.</p>
+  </header>
+  <section class="card">
+    <h2>How hard is today's practice?</h2>
+    <div class="seg" role="group" aria-label="Practice difficulty from 1 to 5" id="seg"></div>
+    <p class="dlabel" id="dlabel"></p>
+    <label for="menu" class="hint">Lunch options, one per line or separated by commas (sample loaded, replace it with today's)</label>
+    <textarea id="menu" spellcheck="false"></textarea>
+  </section>
+  <section class="card">
+    <h2>How your menu was read</h2>
+    <ul class="read" id="read"></ul>
+  </section>
+  <section class="card">
+    <h2>Your plate</h2>
+    <div class="bar" id="bar" role="img" aria-label="Plate proportions"></div>
+    <ul class="plate" id="plate"></ul>
+    <p class="note" id="target"></p>
+    <h2>Text you would receive</h2>
+    <div class="sms" id="sms" aria-live="polite"></div>
+    <button class="btn" type="button" id="copy">Copy text</button>
+    <span class="hint" id="copied" aria-live="polite"></span>
+  </section>
+  <footer>Food groups come from a keyword list, not AI. The macro line is a fixed range for each difficulty level, a rough guide for a typical college athlete, not a measurement of your plate. General fueling guidance using the plate method, not medical advice.</footer>
+</main>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var SAMPLE = ["Grilled chicken breast","Brown rice","Penne pasta with marinara","Roasted broccoli","Garden salad","French fries","Chocolate chip cookie","Scrambled eggs","Bananas","Chocolate milk"].join("\n");
+  var K = {
+    drink: ["chocolate milk","milk","water","juice"],
+    skip: ["fries","fried","cookie","brownie","cake","donut","ice cream","soda","candy","chips"],
+    fruit: ["banana","apple","orange","berries","grapes","melon","fruit"],
+    veg: ["broccoli","spinach","salad","vegetable","carrot","green beans","peppers","asparagus","kale"],
+    carb: ["rice","pasta","penne","spaghetti","noodle","potato","oat","bread","bagel","roll","tortilla","quinoa"],
+    protein: ["chicken","turkey","salmon","fish","tuna","shrimp","egg","tofu","beans","steak","beef","burger","pork","yogurt"]
+  };
+  var TAG = { carb: ["Carb", "var(--c-carb)"], protein: ["Protein", "var(--c-prot)"], veg: ["Veg", "var(--c-veg)"], fruit: ["Fruit", "var(--c-veg)"], drink: ["Drink", "var(--c-carb)"], skip: ["Not used", ""] };
+  // One row per difficulty: carb share of plate, veg share, carb cups, protein oz, veg cups, lunch target g [protein, carbs, fat].
+  var D = [
+    { l: "1: Recovery or very easy", carb: .25, veg: .50, cups: "½ cup", oz: 3, vc: "2 cups", t: [35, 40, 12], side: false },
+    { l: "2: Light practice", carb: .33, veg: .42, cups: "¾ cup", oz: 4, vc: "1½ cups", t: [40, 65, 14], side: false },
+    { l: "3: Moderate practice", carb: .40, veg: .35, cups: "1 cup", oz: 4, vc: "1½ cups", t: [45, 90, 16], side: true },
+    { l: "4: Hard practice", carb: .50, veg: .25, cups: "1½ cups", oz: 4, vc: "1 cup", t: [50, 120, 18], side: true },
+    { l: "5: Brutal or double session", carb: .55, veg: .20, cups: "2 cups", oz: 5, vc: "1 cup", t: [55, 150, 20], side: true }
+  ];
+  var lvl = 4;
+  function has(list, s) { return list.some(function (w) { return s.indexOf(w) !== -1; }); }
+  function group(name) {
+    var s = name.toLowerCase();
+    if (has(K.drink, s)) return "drink";
+    if (has(K.skip, s)) return "skip";
+    if (has(K.fruit, s)) return "fruit";
+    if (has(K.veg, s)) return "veg";
+    if (has(K.carb, s)) return "carb";
+    if (has(K.protein, s)) return "protein";
+    return "skip";
+  }
+  function lean(n) { return /grilled|baked|roasted|brown/i.test(n) ? 1 : 0; }
+  function ranked(items, g) {
+    return items.filter(function (i) { return i.g === g; }).map(function (i) { return i.name; }).sort(function (a, b) { return lean(b) - lean(a); });
+  }
+  function build() {
+    var d = D[lvl - 1];
+    var items = $("menu").value.split(/\n|,|;/).map(function (n) { return n.trim(); }).filter(Boolean).map(function (n) { return { name: n, g: group(n) }; });
+    var carb = ranked(items, "carb"), prot = ranked(items, "protein"), veg = ranked(items, "veg"), fruit = ranked(items, "fruit"), drink = ranked(items, "drink");
+    var used = [].concat(carb.slice(0, 2), prot.slice(0, 2), veg.slice(0, 2), d.side ? fruit.slice(0, 1) : [], drink.slice(0, 1));
+    var read = $("read"); read.innerHTML = "";
+    if (!items.length) { var e = document.createElement("li"); e.textContent = "Nothing pasted yet."; read.appendChild(e); }
+    items.forEach(function (it) {
+      var li = document.createElement("li"), c = document.createElement("span"), t = TAG[it.g];
+      c.className = "chip" + (it.g === "skip" ? " none" : ""); c.textContent = t[0]; if (t[1]) c.style.background = t[1];
+      li.appendChild(c); li.appendChild(document.createTextNode(it.name));
+      var u = document.createElement("span"); u.className = "used";
+      u.textContent = it.g === "skip" ? "left off the plate" : used.indexOf(it.name) !== -1 ? "on your plate" : "backup option";
+      li.appendChild(u); read.appendChild(li);
+    });
+    var tot = d.carb + .25 + d.veg;
+    var spec = [
+      { k: "carb", name: "Carbs", f: d.carb, c: "var(--c-carb)", names: carb, amt: "about " + d.cups, miss: "no carb found, add rice, pasta or bread" },
+      { k: "protein", name: "Protein", f: .25, c: "var(--c-prot)", names: prot, amt: (prot[0] && /egg/i.test(prot[0]) ? "about " + (d.oz - 1) + " eggs" : prot[0] && /yogurt/i.test(prot[0]) ? "about 1 cup" : prot[0] && /beans/i.test(prot[0]) ? "about ¾ cup" : "about " + d.oz + " oz, " + (d.oz <= 4 ? "palm-size" : "a bit more than a palm")), miss: "no protein found, add eggs, chicken, fish or beans" },
+      { k: "veg", name: "Vegetables", f: d.veg, c: "var(--c-veg)", names: veg, amt: "about " + d.vc, miss: "no vegetables found, add a salad" }
+    ];
+    if (d.veg > d.carb) spec = [spec[2], spec[1], spec[0]];
+    var bar = $("bar"); bar.innerHTML = ""; var ul = $("plate"); ul.innerHTML = ""; var lines = [];
+    spec.forEach(function (p) {
+      var pct = Math.round(p.f / tot * 100), txt = p.names.length ? p.names.slice(0, 2).join(" or ") : p.miss;
+      var sg = document.createElement("span"); sg.style.width = pct + "%"; sg.style.background = p.c; sg.textContent = pct + "%"; bar.appendChild(sg);
+      var li = document.createElement("li"); li.style.borderLeftColor = p.c;
+      var b = document.createElement("b"); b.textContent = p.name + " (about " + pct + "% of the plate)"; li.appendChild(b);
+      li.appendChild(document.createTextNode(txt));
+      if (p.names.length) { var m = document.createElement("span"); m.className = "m"; m.textContent = p.amt; li.appendChild(m); }
+      ul.appendChild(li); lines.push(p.name + ": " + txt + (p.names.length ? " (" + p.amt + ")" : ""));
+    });
+    var side = [d.side && fruit[0] ? fruit[0] : null, d.side && drink[0] ? drink[0] : "water"].filter(Boolean).join(", ");
+    var tg = "Lunch target at this difficulty: about " + d.t[0] + " g protein, " + d.t[1] + " g carbs, " + d.t[2] + " g fat.";
+    $("dlabel").textContent = d.l; $("target").textContent = tg;
+    $("sms").textContent = "Lunch plan (practice difficulty " + lvl + " of 5)\n" + lines.join("\n") + "\nOn the side: " + side + "\n" + tg + "\nSend a photo of your plate.";
+  }
+  var seg = $("seg");
+  D.forEach(function (d, i) {
+    var bt = document.createElement("button"); bt.type = "button"; bt.textContent = i + 1; bt.id = "d" + (i + 1);
+    bt.setAttribute("aria-label", "Difficulty " + (i + 1)); bt.setAttribute("aria-pressed", String(i + 1 === lvl));
+    bt.addEventListener("click", function () { lvl = i + 1; D.forEach(function (x, j) { $("d" + (j + 1)).setAttribute("aria-pressed", String(j + 1 === lvl)); }); build(); });
+    seg.appendChild(bt);
+  });
+  $("menu").value = SAMPLE;
+  $("menu").addEventListener("input", build);
+  $("copy").addEventListener("click", function () {
+    var m = $("copied");
+    function fb() { var rg = document.createRange(); rg.selectNodeContents($("sms")); var s = window.getSelection(); s.removeAllRanges(); s.addRange(rg); m.textContent = "Selected. Press Ctrl+C or Cmd+C."; }
+    try { navigator.clipboard.writeText($("sms").textContent).then(function () { m.textContent = "Copied."; }, fb); } catch (e) { fb(); }
+  });
+  build();
+})();
+</script>
+
+</body>
+</html>
